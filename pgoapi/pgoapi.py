@@ -26,24 +26,27 @@ from time import sleep
 from collections import defaultdict
 import os.path
 
+from IPython import embed
+
 logger = logging.getLogger(__name__)
 BAD_ITEM_IDS = [101,102,701,702,703] #Potion, Super Potion, RazzBerry, BlukBerry, Revive
 
 # Minimum amount of the bad items that you should have ... Modify based on your needs ... like if you need to battle a gym?
-MIN_BAD_ITEM_COUNTS = {Inventory.ITEM_POTION: 10,
-                       Inventory.ITEM_SUPER_POTION: 10,
-                       Inventory.ITEM_RAZZ_BERRY: 10,
-                       Inventory.ITEM_BLUK_BERRY: 10,
-                       Inventory.ITEM_NANAB_BERRY: 10,
-                       Inventory.ITEM_REVIVE: 10}
-MIN_SIMILAR_POKEMON = 1
+MIN_BAD_ITEM_COUNTS = { Inventory.ITEM_POKE_BALL: 50,
+                        Inventory.ITEM_POTION: 0,
+                        Inventory.ITEM_SUPER_POTION: 10,
+                        Inventory.ITEM_RAZZ_BERRY: 20,
+                        Inventory.ITEM_BLUK_BERRY: 20,
+                        Inventory.ITEM_NANAB_BERRY: 20,
+                        Inventory.ITEM_REVIVE: 10}
+MIN_SIMILAR_POKEMON = 2
 
 
 class PGoApi:
 
     API_ENTRY = 'https://pgorelease.nianticlabs.com/plfe/rpc'
 
-    def __init__(self, config, pokemon_names):
+    def __init__(self, config, pokemon_names, items_names):
 
         self.log = logging.getLogger(__name__)
 
@@ -59,6 +62,7 @@ class PGoApi:
         self._req_method_list = []
         self._heartbeat_number = 5
         self.pokemon_names = pokemon_names
+        self.items_names = items_names
 
     def call(self):
         if not self._req_method_list:
@@ -148,7 +152,7 @@ class PGoApi:
                 res['responses']['lat'] = self._posf[0]
                 res['responses']['lng'] = self._posf[1]
                 f.write(json.dumps(res['responses'], indent=2))
-            self.log.info(get_inventory_data(res, self.pokemon_names))
+            # self.log.info(get_inventory_data(res, self.pokemon_names))
             self.log.debug(self.cleanup_inventory(res['responses']['GET_INVENTORY']['inventory_delta']['inventory_items']))
 
         self._heartbeat_number += 1
@@ -160,13 +164,14 @@ class PGoApi:
                 self.set_position(*next_point)
                 self.heartbeat()
                 self.log.info("Sleeping before next heartbeat")
-                sleep(2) # If you want to make it faster, delete this line... would not recommend though
+                sleep(1) # If you want to make it faster, delete this line... would not recommend though
                 while self.catch_near_pokemon():
                     sleep(1) # If you want to make it faster, delete this line... would not recommend though
 
 
 
     def spin_near_fort(self):
+        self.log.info("***************************************")
         map_cells = self.nearby_map_objects()['responses']['GET_MAP_OBJECTS']['map_cells']
         forts = PGoApi.flatmap(lambda c: c.get('forts', []), map_cells)
         destinations = filtered_forts(self._posf,forts)
@@ -176,7 +181,25 @@ class PGoApi:
             self.walk_to((fort['latitude'], fort['longitude']))
             position = self._posf # FIXME ?
             res = self.fort_search(fort_id = fort['id'], fort_latitude=fort['latitude'],fort_longitude=fort['longitude'],player_latitude=position[0],player_longitude=position[1]).call()['responses']['FORT_SEARCH']
-            self.log.debug("Fort spinned: %s", res)
+
+            self.log.info("Fort spinned.....................................")
+            try:
+                # self.log.info( res)
+                # embed()
+                items_awarded = res['items_awarded']
+                message_output = ""
+                for item in items_awarded :
+                    message_output += "\n"
+                    message_output += self.items_names[str(item['item_id'])]
+                    with open("web/current_session.json", "a") as f:
+                        text = "item: " + str(item['item_id']) + "\n"
+                        f.write(text)
+
+                self.log.info("Fort spinned: %s", message_output)
+            except:
+                pass
+
+            # self.log.info(res)
             if 'lure_info' in fort:
                 encounter_id = fort['lure_info']['encounter_id']
                 fort_id = fort['lure_info']['fort_id']
@@ -207,20 +230,23 @@ class PGoApi:
         position = self.get_position()
         neighbors = getNeighbors(self._posf)
         return self.get_map_objects(latitude=position[0], longitude=position[1], since_timestamp_ms=[0]*len(neighbors), cell_id=neighbors).call()
-    
+
     def attempt_catch(self,encounter_id,spawn_point_guid): #Problem here... add 4 if you have master ball
         for i in range(1,3): # Range 1...4 iff you have master ball `range(1,4)`
-            r = self.catch_pokemon(
-                normalized_reticle_size= 1.950,
-                pokeball = i,
-                spin_modifier= 0.850,
-                hit_pokemon=True,
-                normalized_hit_position=1,
-                encounter_id=encounter_id,
-                spawn_point_guid=spawn_point_guid,
-                ).call()['responses']['CATCH_POKEMON']
-            if "status" in r:
-                return r
+            try:
+                r = self.catch_pokemon(
+                    normalized_reticle_size= 1.950,
+                    pokeball = i,
+                    spin_modifier= 0.850,
+                    hit_pokemon=True,
+                    normalized_hit_position=1,
+                    encounter_id=encounter_id,
+                    spawn_point_guid=spawn_point_guid,
+                    ).call()['responses']['CATCH_POKEMON']
+                if "status" in r:
+                    return r
+            except:
+              pass
 
     def cleanup_inventory(self, inventory_items=None):
         if not inventory_items:
@@ -239,10 +265,15 @@ class PGoApi:
                     self.log.info("Recycling Item_ID {0}, item count {1}".format(item['item_id'], recycle_count))
                     self.recycle_inventory_item(item_id=item['item_id'], count=recycle_count)
 
+
+        FUCKING_POKEMONS2 = range(1, 250)
         for pokemons in caught_pokemon.values():
             if len(pokemons) > MIN_SIMILAR_POKEMON:
                 pokemons = sorted(pokemons, lambda x,y: cmp(x['cp'],y['cp']),reverse=True)
                 for pokemon in pokemons[MIN_SIMILAR_POKEMON:]:
+                    if pokemon['pokemon_id'] in FUCKING_POKEMONS2:
+                        self.log.info("HASTA LA VISTA %s!!!!", self.pokemon_names[str(pokemon['pokemon_id'])])
+                        self.release_pokemon(pokemon_id = pokemon["id"])
                     if 'cp' in pokemon and pokemonIVPercentage(pokemon) < self.MIN_KEEP_IV and pokemon['cp'] < self.KEEP_CP_OVER:
                         if pokemon['pokemon_id'] == 16:
                             for inventory_item in inventory_items:
@@ -270,7 +301,10 @@ class PGoApi:
                      if capture_status == 1:
                          self.log.debug("Caught Pokemon: : %s", catch_attempt)
                          self.log.info("Caught Pokemon:  %s", self.pokemon_names[str(resp['pokemon_data']['pokemon_id'])])
-                         sleep(2) # If you want to make it faster, delete this line... would not recommend though
+                         with open("web/current_session.json", "a") as f:
+                             text = "pokemon: " + str(resp['pokemon_data']['pokemon_id']) + "\n"
+                             f.write(text)
+                         sleep(1) # If you want to make it faster, delete this line... would not recommend though
                          return catch_attempt
                      elif capture_status != 2:
                          self.log.debug("Failed Catch: : %s", catch_attempt)
@@ -296,13 +330,16 @@ class PGoApi:
                 if capture_status == 1:
                     self.log.debug("Caught Pokemon: : %s", catch_attempt)
                     self.log.info("Caught Pokemon:  %s", self.pokemon_names[str(pokemon['pokemon_id'])])
-                    sleep(2) # If you want to make it faster, delete this line... would not recommend though
+                    with open("web/current_session.json", "a") as f:
+                        text = "pokemon: " + str(pokemon['pokemon_id']) + "\n"
+                        f.write(text)
+                    sleep(1) # If you want to make it faster, delete this line... would not recommend though
                     return catch_attempt
                 elif capture_status != 2:
                     self.log.debug("Failed Catch: : %s", catch_attempt)
                     self.log.info("Failed to Catch Pokemon:  %s", self.pokemon_names[str(pokemon['pokemon_id'])])
                 return False
-                sleep(2) # If you want to make it faster, delete this line... would not recommend though
+                sleep(1) # If you want to make it faster, delete this line... would not recommend though
         return False
 
 
@@ -367,10 +404,10 @@ class PGoApi:
         self.heartbeat()
         while True:
             self.heartbeat()
-            sleep(1) # If you want to make it faster, delete this line... would not recommend though
+            sleep(2) # If you want to make it faster, delete this line... would not recommend though
             self.spin_near_fort()
             while self.catch_near_pokemon():
-                sleep(4) # If you want to make it faster, delete this line... would not recommend though
+                sleep(1) # If you want to make it faster, delete this line... would not recommend though
                 pass
 
     @staticmethod

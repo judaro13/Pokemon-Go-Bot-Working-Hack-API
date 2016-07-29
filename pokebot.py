@@ -79,7 +79,8 @@ def main():
         return
 
     pokemon_names = json.load(open("name_id.json"))
-    api = PGoApi(config.__dict__, pokemon_names)
+    items_names = json.load(open("items_id.json"))
+    api = PGoApi(config.__dict__, pokemon_names, items_names)
 
     api.set_position(*position)
 
@@ -87,10 +88,11 @@ def main():
         return
     while True:
         try:
+            open("web/current_session.json", 'w').close()
             api.main_loop()
         except Exception as e:
             log.error('Main loop has an ERROR, restarting %s', e)
-            sleep(30)
+            sleep(1)
             main()
 
     import ipdb; ipdb.set_trace()
