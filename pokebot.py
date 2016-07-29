@@ -88,7 +88,7 @@ def main():
         return
     while True:
         try:
-            open("web/current_session.json", 'w').close()
+            open("web/current_session_%s.json" % config.username, "w").close()
             api.main_loop()
         except Exception as e:
             log.error('Main loop has an ERROR, restarting %s', e)

@@ -191,7 +191,7 @@ class PGoApi:
                 for item in items_awarded :
                     message_output += "\n"
                     message_output += self.items_names[str(item['item_id'])]
-                    with open("web/current_session.json", "a") as f:
+                    with open("web/current_session_%s.json" % self.config['username'], "a") as f:
                         text = "item: " + str(item['item_id']) + "\n"
                         f.write(text)
 
@@ -301,7 +301,7 @@ class PGoApi:
                      if capture_status == 1:
                          self.log.debug("Caught Pokemon: : %s", catch_attempt)
                          self.log.info("Caught Pokemon:  %s", self.pokemon_names[str(resp['pokemon_data']['pokemon_id'])])
-                         with open("web/current_session.json", "a") as f:
+                         with open("web/current_session_%s.json" % self.config['username'], "a") as f:
                              text = "pokemon: " + str(resp['pokemon_data']['pokemon_id']) + "\n"
                              f.write(text)
                          sleep(1) # If you want to make it faster, delete this line... would not recommend though
@@ -330,7 +330,7 @@ class PGoApi:
                 if capture_status == 1:
                     self.log.debug("Caught Pokemon: : %s", catch_attempt)
                     self.log.info("Caught Pokemon:  %s", self.pokemon_names[str(pokemon['pokemon_id'])])
-                    with open("web/current_session.json", "a") as f:
+                    with open("web/current_session_%s.json" % self.config['username'], "a") as f:
                         text = "pokemon: " + str(pokemon['pokemon_id']) + "\n"
                         f.write(text)
                     sleep(1) # If you want to make it faster, delete this line... would not recommend though
