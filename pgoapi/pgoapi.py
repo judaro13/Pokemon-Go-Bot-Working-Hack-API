@@ -176,7 +176,7 @@ class PGoApi:
                 self.log.info("Sleeping before next heartbeat")
                 sleep(1) # If you want to make it faster, delete this line... would not recommend though
                 while self.catch_near_pokemon():
-                    sleep(1) # If you want to make it faster, delete this line... would not recommend though
+                    sleep(0) # If you want to make it faster, delete this line... would not recommend though
 
 
 
