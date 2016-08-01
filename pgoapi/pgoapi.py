@@ -33,12 +33,22 @@ BAD_ITEM_IDS = [101,102,701,702,703] #Potion, Super Potion, RazzBerry, BlukBerry
 
 # Minimum amount of the bad items that you should have ... Modify based on your needs ... like if you need to battle a gym?
 MIN_BAD_ITEM_COUNTS = { Inventory.ITEM_POKE_BALL: 50,
-                        Inventory.ITEM_POTION: 0,
+                        Inventory.ITEM_GREAT_BALL: 50,
+                        Inventory.ITEM_ULTRA_BALL: 80,
+                        Inventory.ITEM_MASTER_BALL: 100,
+                        Inventory.ITEM_POTION: 10,
                         Inventory.ITEM_SUPER_POTION: 10,
-                        Inventory.ITEM_RAZZ_BERRY: 20,
-                        Inventory.ITEM_BLUK_BERRY: 20,
-                        Inventory.ITEM_NANAB_BERRY: 20,
-                        Inventory.ITEM_REVIVE: 10}
+                        Inventory.ITEM_HYPER_POTION: 20,
+                        Inventory.ITEM_MAX_POTION: 20,
+                        Inventory.ITEM_MAX_REVIVE: 20,
+                        Inventory.ITEM_LUCKY_EGG: 20,
+                        Inventory.ITEM_INCENSE_ORDINARY: 20,
+                        Inventory.ITEM_RAZZ_BERRY: 10,
+                        Inventory.ITEM_BLUK_BERRY: 10,
+                        Inventory.ITEM_NANAB_BERRY: 10,
+                        Inventory.ITEM_WEPAR_BERRY: 10,
+                        Inventory.ITEM_PINAP_BERRY: 10
+                        }
 MIN_SIMILAR_POKEMON = 2
 
 
@@ -171,7 +181,6 @@ class PGoApi:
 
 
     def spin_near_fort(self):
-        self.log.info("***************************************")
         map_cells = self.nearby_map_objects()['responses']['GET_MAP_OBJECTS']['map_cells']
         forts = PGoApi.flatmap(lambda c: c.get('forts', []), map_cells)
         destinations = filtered_forts(self._posf,forts)
@@ -195,7 +204,7 @@ class PGoApi:
                         text = "item: " + str(item['item_id']) + "\n"
                         f.write(text)
 
-                self.log.info("Fort spinned: %s", message_output)
+                self.log.info(message_output)
             except:
                 pass
 
@@ -246,9 +255,9 @@ class PGoApi:
                 if "status" in r:
                     return r
             except:
-              pass
-
+                continue
     def cleanup_inventory(self, inventory_items=None):
+        self.log.info("***************************************")
         if not inventory_items:
             inventory_items = self.get_inventory().call()['responses']['GET_INVENTORY']['inventory_delta']['inventory_items']
         caught_pokemon = defaultdict(list)
@@ -310,7 +319,7 @@ class PGoApi:
                          self.log.debug("Failed Catch: : %s", catch_attempt)
                          self.log.info("Failed to catch Pokemon:  %s", self.pokemon_names[str(resp['pokemon_data']['pokemon_id'])])
                          return False
-                     sleep(2) # If you want to make it faster, delete this line... would not recommend though
+                     sleep(1) # If you want to make it faster, delete this line... would not recommend though
         except Exception as e:
             self.log.error("Error in disk encounter %s", e)
             return False
@@ -407,7 +416,7 @@ class PGoApi:
             sleep(2) # If you want to make it faster, delete this line... would not recommend though
             self.spin_near_fort()
             while self.catch_near_pokemon():
-                sleep(1) # If you want to make it faster, delete this line... would not recommend though
+                sleep(2) # If you want to make it faster, delete this line... would not recommend though
                 pass
 
     @staticmethod

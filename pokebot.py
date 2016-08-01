@@ -84,11 +84,12 @@ def main():
 
     api.set_position(*position)
 
+    open("web/current_session_%s.json" % config.username, "w").close()
+
     if not api.login(config.auth_service, config.username, config.password, config.cached):
         return
     while True:
         try:
-            open("web/current_session_%s.json" % config.username, "w").close()
             api.main_loop()
         except Exception as e:
             log.error('Main loop has an ERROR, restarting %s', e)
